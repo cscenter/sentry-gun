@@ -3,21 +3,70 @@ __author__ = 'vasdommes'
 import cv2
 import numpy as np
 import math
+import logging
+
+
+def extract_ball_from_capture(cap, max_frames_count=30 * 3):
+    """
+
+    Read frames from capture until we detect motion of the ball
+
+    Return tuple of (original frames, ball mask frames)
+
+    :rtype : (list(np.ndarray), list(np.ndarray))
+    """
+    frames = []
+    mask_frames = []
+    mog = cv2.BackgroundSubtractorMOG()
+    motion_started = False
+    while cap.isOpened():
+        if len(frames) > max_frames_count:
+            logging.info('max frames count reached')
+            break
+
+        ret, frame = cap.read()
+        if ret:
+            mask = mog.apply(frame)
+            is_ball, mask = detect_ball(mask)
+            if is_ball:
+                if not motion_started:
+                    logging.info('ball appeared')
+                    motion_started = True
+                frames.append(frame)
+                mask_frames.append(mask)
+            else:
+                if motion_started:
+                    logging.info(
+                        'ball disappeared. Frames count: {}'.format(
+                            len(frames)))
+                    break
+                else:
+                    continue
+        else:
+            logging.info('Cannot read more frames')
+            break
+    return frames, mask_frames
 
 
 def subtract_background_MOG(frames, *args, **kwargs):
     mog = cv2.BackgroundSubtractorMOG(*args, **kwargs)
-    dst = np.empty(frames.shape[:3], frames.dtype)
-    for i in range(len(frames)):
-        dst[i] = mog.apply(frames[i])
+    dst = []
+    for frame in frames:
+        dst.append(mog.apply(frame))
+    # dst = np.empty(frames.shape[:3], frames.dtype)
+    # for i in range(len(frames)):
+    # dst[i] = mog.apply(frames[i])
     return dst
 
 
 def subtract_background_MOG2(frames, *args, **kwargs):
     mog2 = cv2.BackgroundSubtractorMOG2(*args, **kwargs)
-    dst = np.empty(frames.shape[:3], frames.dtype)
-    for i in range(len(frames)):
-        dst[i] = mog2.apply(frames[i])
+    dst = []
+    for frame in frames:
+        dst.append(mog2.apply(frame))
+    # dst = np.empty(frames.shape[:3], frames.dtype)
+    # for i in range(len(frames)):
+    # dst[i] = mog2.apply(frames[i])
     return dst
 
 
@@ -55,7 +104,7 @@ def subtract_background_gray(frames, background=None, dst=None):
 def detect_ball(mask, ball_size=3):
     """
 
-    :rtype: np.ndarray
+    :rtype: (bool, np.ndarray)
     """
     if ball_size % 2 == 0:
         ball_size -= 1
@@ -69,7 +118,7 @@ def detect_ball(mask, ball_size=3):
 
     ball = np.zeros(mask.shape, mask.dtype)
     if areas:
-        area, contour = max(zip(areas, contours))
+        area, contour = max(zip(areas, contours), key=(lambda x: x[0]))
         cv2.drawContours(ball, [contour], -1, color=255, thickness=-1)
         ret = True
     else:
