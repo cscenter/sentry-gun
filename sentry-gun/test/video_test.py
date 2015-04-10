@@ -2,13 +2,14 @@ __author__ = 'vasdommes'
 
 import cv2
 import numpy as np
-import subprocess
 import os
 import video_processing
-import math
+import time
 import logging
 
+
 logging.basicConfig(level=logging.INFO)
+logging.info('started at {}'.format(time.strftime('%x %X')))
 
 input_path = os.path.join("input", "input_HD.avi")
 cap = cv2.VideoCapture(input_path)
@@ -22,7 +23,7 @@ height = cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT)
 
 def write_video(path, frames, frameSize=None, fps=fps):
     if not frameSize:
-        height, width = frames.shape[1:3]
+        height, width = frames[0].shape[0:2]
         frameSize = width, height
     path = os.path.join('output', path)
     out = get_video_writer(path, frameSize=frameSize, fps=fps)
@@ -42,6 +43,15 @@ def get_video_writer(path, fourcc=cv2.cv.CV_FOURCC(*'XVID'), fps=fps,
         os.remove(path)
     return cv2.VideoWriter(path, fourcc, fps, frameSize, isColor)
 
+frames, mask_frames = video_processing.extract_ball_from_capture(cap)
+
+write_video('frames.avi', frames)
+write_video('mask_frames.avi', mask_frames)
+
+cap.release()
+
+cap = cv2.VideoCapture(input_path)
+# exit(0)
 
 logging.info("Start reading file {}".format(input_path))
 frames = []
@@ -78,19 +88,18 @@ for i in range(len(mog)):
 logging.info('contours found')
 write_video('mog_contours.avi', mog_contours)
 
-balls = np.empty(mog.shape, mog.dtype)
+# balls = np.empty(mog.shape, mog.dtype)
+balls=[]
 for i in range(len(mog)):
-    ret, balls[i] = video_processing.detect_ball(mog[i], ball_size=3)
+    ret, ball = video_processing.detect_ball(mog[i], ball_size=3)
+    balls.append(ball)
     logging.debug(ret)
     # if ret:
     # x, y = video_processing.ball_center(balls[i])
     # r = video_processing.ball_radius(balls[i])
 write_video('ball_mask.avi', balls)
 
-balls_orig = np.empty(frames.shape, mog.dtype)
-for i in range(len(mog)):
-    balls_orig[i] = cv2.bitwise_and(frames[i],
-                                    cv2.cvtColor(balls[i], cv2.COLOR_GRAY2BGR))
-write_video('ball_orig.avi', balls_orig)
 
 cv2.destroyAllWindows()
+
+logging.info('finished at {}'.format(time.strftime('%x %X')))
