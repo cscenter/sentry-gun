@@ -5,6 +5,8 @@ import numpy as np
 import math
 import logging
 
+logger = logging.getLogger('video_processing')
+
 
 def extract_ball_from_capture(cap, max_frames_count=30 * 3):
     """
@@ -21,7 +23,7 @@ def extract_ball_from_capture(cap, max_frames_count=30 * 3):
     motion_started = False
     while cap.isOpened():
         if len(frames) > max_frames_count:
-            logging.info('max frames count reached')
+            logger.debug('max frames count reached')
             break
 
         ret, frame = cap.read()
@@ -30,22 +32,75 @@ def extract_ball_from_capture(cap, max_frames_count=30 * 3):
             is_ball, mask = detect_ball(mask)
             if is_ball:
                 if not motion_started:
-                    logging.info('ball appeared')
+                    logger.debug('ball appeared')
                     motion_started = True
                 frames.append(frame)
                 mask_frames.append(mask)
             else:
                 if motion_started:
-                    logging.info(
+                    logger.debug(
                         'ball disappeared. Frames count: {}'.format(
                             len(frames)))
                     break
                 else:
                     continue
         else:
-            logging.info('Cannot read more frames')
+            logger.debug('Cannot read more frames')
             break
     return frames, mask_frames
+
+
+def get_ball_trajectory(mask_frames):
+    return [ball_center(frame) for frame in mask_frames]
+
+
+# TODO move to separate module
+def get_acceleration(trajectory):
+    """
+
+    :type trajectory: collections.Iterable[(float,float)]
+    :rtype :
+    """
+    # calculate acceleration
+    return np.concatenate(
+        ([[0.0, 0.0]], np.diff(trajectory, n=2, axis=0), [[0.0, 0.0]]))
+
+
+# TODO move to separate module
+# TODO interpolate point using 4 neighbour points
+def get_landing_point(trajectory, threshold=1.0):
+    a = [ax ** 2 + ay ** 2 for ax, ay in get_acceleration(trajectory)]
+    for i in xrange(2, len(a) - 2):
+        neighbours = (a[i - 2], a[i - 1], a[i + 1], a[i + 2])
+        if all(a[i] > x * threshold for x in neighbours):
+            return trajectory[i]
+            # TODO take into account change of direction? Current version fails on 7.avi
+
+
+# TODO 1.avi and 8.avi fail
+# TODO consider only counterclockwise rotation
+# TODO threshold
+def get_landing_point_by_angle(trajectory):
+    """Look for first max change of direction"""
+
+    def prod((x1, y1), (x2, y2)):
+        return x1 * x2 + y1 * y2
+
+    def norm((x, y)):
+        return math.sqrt(x ** 2 + y ** 2)
+
+    v = np.diff(trajectory, axis=0)
+    d_phi = []
+    for i in xrange(1, len(v)):
+        if norm(v[i]) * norm(v[i - 1]) == 0:
+            d_phi.append(1.0)
+        else:
+            d_phi.append(prod(v[i], v[i - 1]) / norm(v[i]) / norm(v[i - 1]))
+
+    for i in xrange(1, len(d_phi) - 1):
+        neighbours = (d_phi[i - 1], d_phi[i + 1])
+        if all(d_phi[i] < x for x in neighbours):
+            return trajectory[i + 1]
 
 
 def subtract_background_MOG(frames, *args, **kwargs):
@@ -53,9 +108,6 @@ def subtract_background_MOG(frames, *args, **kwargs):
     dst = []
     for frame in frames:
         dst.append(mog.apply(frame))
-    # dst = np.empty(frames.shape[:3], frames.dtype)
-    # for i in range(len(frames)):
-    # dst[i] = mog.apply(frames[i])
     return dst
 
 
@@ -64,9 +116,6 @@ def subtract_background_MOG2(frames, *args, **kwargs):
     dst = []
     for frame in frames:
         dst.append(mog2.apply(frame))
-    # dst = np.empty(frames.shape[:3], frames.dtype)
-    # for i in range(len(frames)):
-    # dst[i] = mog2.apply(frames[i])
     return dst
 
 
@@ -74,15 +123,6 @@ def subtract_background_gray(frames, background=None, dst=None):
     """
 
     returns gray image
-
-    :type frames: np.ndarray
-
-    :type dst: np.ndarray
-
-    :param frames:
-    :param background:
-    :param dst:
-    :rtype: np.ndarray
     """
 
     if dst is None:
@@ -141,8 +181,6 @@ def ball_radius(ball_mask):
     m = cv2.moments(ball_mask, binaryImage=True)
     if m['m00'] > 0:
         mass = m['m00']
-        x = m['m10'] / mass
-        y = m['m01'] / mass
         dx = math.sqrt(m['mu20'] / mass)
         dy = math.sqrt(m['mu02'] / mass)
         return math.sqrt(dx ** 2 + dy ** 2)
@@ -162,6 +200,11 @@ def ball_fitEllipse(ball_mask):
 
 
 def unshake(src, sample):
+    """
+
+    Compensate camera shaking.
+    :rtype : np.ndarray
+    """
     f0 = cv2.cvtColor(np.float32(sample), cv2.COLOR_BGR2GRAY)
     f = np.float32(cv2.cvtColor(np.float32(src), cv2.COLOR_BGR2GRAY))
     (dx, dy) = cv2.phaseCorrelate(f, f0)
