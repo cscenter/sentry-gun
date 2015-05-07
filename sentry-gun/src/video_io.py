@@ -1,7 +1,7 @@
-__author__ = 'vasdommes'
-
 import cv2
 import os
+
+__author__ = 'vasdommes'
 
 
 def write_video(path, frames, fps, frame_size=None, isColor=True):
@@ -40,3 +40,32 @@ def get_video_writer(path, fourcc, fps, frame_size,
     if os.path.exists(path):
         os.remove(path)
     return cv2.VideoWriter(path, fourcc, fps, frame_size, isColor)
+
+
+def get_frames(input_path, max_count=None):
+    """
+    Get frames from video file
+
+    :param input_path:
+    :return:
+    """
+    cap = cv2.VideoCapture(input_path)
+    frames = []
+    if max_count:
+        for _ in xrange(max_count):
+            if not cap.isOpened():
+                break
+            ret, frame = cap.read()
+            if ret:
+                frames.append(frame)
+            else:
+                break
+    else:
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if ret:
+                frames.append(frame)
+            else:
+                break
+    cap.release()
+    return frames
