@@ -8,9 +8,12 @@ from ballistics import final_coords
 
 
 class GunLayer:
-    def __init__(self, rotate_and_shoot, get_coords, gun_params=None):
+    def __init__(self, rotate_and_shoot, get_coords, target=(0, 0),
+                 gun_params=None):
         self.rotate_and_shoot = rotate_and_shoot
         self.get_coords = get_coords
+        self.target = target # TODO
+
         self.history = []
 
         self.alpha = 0.0
