@@ -1,7 +1,7 @@
 import logging
 import math
 import numpy as np
-import image_processing
+import img_util
 
 __author__ = 'vasdommes'
 
@@ -70,4 +70,4 @@ def get_landing_point_by_angle(trajectory, threshold_phi=0):
 
 
 def get_ball_trajectory(mask_frames):
-    return [image_processing.ball_center(frame) for frame in mask_frames]
+    return [img_util.ball_center(frame) for frame in mask_frames]

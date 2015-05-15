@@ -3,7 +3,7 @@ import logging
 import cv2
 import numpy as np
 
-import image_processing
+import img_util
 
 
 __author__ = 'vasdommes'
@@ -13,11 +13,11 @@ logger = logging.getLogger('video_processing')
 
 def preprocess(img, dst=None, carpet_mask=None):
     if carpet_mask is None:
-        carpet_mask = image_processing.green_carpet_mask(img)
+        carpet_mask = img_util.green_carpet_mask(img)
 
     h, l, s = cv2.split(cv2.cvtColor(img, cv2.COLOR_BGR2HLS))
     # Only orange colors
-    cv2.inRange(h, 20, 40, h)
+    cv2.inRange(h, 18, 35, h)
     cv2.inRange(s, 50, 255, s)
 
     # mask = image_processing.mask_hue(img, min_hue=20, max_hue=40)
@@ -27,7 +27,7 @@ def preprocess(img, dst=None, carpet_mask=None):
 
 def get_mask(img, dst=None, carpet_mask=None):
     if carpet_mask is None:
-        carpet_mask = image_processing.green_carpet_mask(img)
+        carpet_mask = img_util.green_carpet_mask(img)
 
     h, l, s = cv2.split(cv2.cvtColor(img, cv2.COLOR_BGR2HLS))
     # Only orange colors
@@ -36,7 +36,7 @@ def get_mask(img, dst=None, carpet_mask=None):
     return cv2.bitwise_and(h, s, dst, mask=carpet_mask)
 
 
-def extract_ball_from_capture(cap, max_frames_count=30 * 5, skip_count=0,
+def extract_ball_from_capture(cap, max_frames_count=-1, skip_count=0,
                               carpet_mask=None, get_mask=None):
     """
 
@@ -58,15 +58,15 @@ def extract_ball_from_capture(cap, max_frames_count=30 * 5, skip_count=0,
 
     prev_mask = None
     while cap.isOpened():
-        if len(frames) > max_frames_count:
+        if max_frames_count > 0 and len(frames) > max_frames_count:
             logger.debug('max frames count reached')
             break
 
         ret, frame = cap.read()
         if ret:
-            if get_mask:
+            if get_mask is not None:
                 if carpet_mask is None:
-                    carpet_mask = image_processing.green_carpet_mask(frame)
+                    carpet_mask = img_util.green_carpet_mask(frame)
                 mask = get_mask(frame, carpet_mask=carpet_mask)
                 if prev_mask is None:
                     move_mask = np.zeros_like(mask)
@@ -77,7 +77,7 @@ def extract_ball_from_capture(cap, max_frames_count=30 * 5, skip_count=0,
             else:
                 move_mask = mog.apply(frame)
 
-            is_ball, move_mask = image_processing.detect_ball(move_mask)
+            is_ball, move_mask = img_util.detect_ball(move_mask)
             if is_ball:
                 if not motion_started:
                     logger.debug('ball appeared')

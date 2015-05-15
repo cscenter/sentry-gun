@@ -4,7 +4,7 @@ import os
 __author__ = 'vasdommes'
 
 
-def write_video(path, frames, fps, frame_size=None, isColor=True):
+def write_video(path, frames, fps=30.0, frame_size=None, isColor=True):
     """
     Write video frames to file, override if exists
 
@@ -13,7 +13,7 @@ def write_video(path, frames, fps, frame_size=None, isColor=True):
     :type path: str | unicode
     :rtype : None
     """
-    if not frames:
+    if frames is None or len(frames) == 0:
         raise ValueError('no frames ')
     if fps <= 0:
         raise ValueError('fps must be positive')

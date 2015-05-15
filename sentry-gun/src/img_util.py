@@ -20,6 +20,21 @@ def equalize_bgr(img, dst=None):
     return cv2.cvtColor(dst, cv2.COLOR_HLS2BGR, dst=dst)
 
 
+def largest_contour(img):
+    if len(img.shape) != 2:
+        raise ValueError('img is not grayscale')
+    mask = img.copy()
+
+    contours, _ = cv2.findContours(mask, mode=cv2.RETR_EXTERNAL,
+                                   method=cv2.CHAIN_APPROX_SIMPLE)
+    areas = [cv2.contourArea(c) for c in contours]
+    if areas:
+        area, contour = max(zip(areas, contours), key=(lambda x: x[0]))
+        return True, contour
+    else:
+        return False, None
+
+
 def largest_contour_blob(img):
     if len(img.shape) != 2:
         raise ValueError('img is not grayscale')
@@ -65,6 +80,9 @@ def largest_blob(img):
 def detect_ball(mask, ball_size=11):
     """
 
+
+    :param mask:
+    :param ball_size:
     :rtype: (bool, np.ndarray)
     """
     if ball_size % 2 == 0:
@@ -97,6 +115,7 @@ def ball_radius(ball_mask):
         return None
 
 
+# TODO return not center but lowest (max-y) coordinate
 def ball_center(ball_mask):
     m = cv2.moments(ball_mask, binaryImage=True)
     if m['m00'] > 0:
@@ -129,14 +148,32 @@ def green_carpet_mask(img, min_hue=55, max_hue=70, ker_erode=None,
         cv2.morphologyEx(mask, op=cv2.MORPH_DILATE, kernel=ker_erode, dst=mask)
         if not ker_close:
             ker_close = cv2.getStructuringElement(cv2.MORPH_RECT, (101, 101))
-        cv2.morphologyEx(mask, cv2.MORPH_DILATE, ker_close, dst=mask)
+        # cv2.morphologyEx(mask, cv2.MORPH_DILATE, ker_close, dst=mask)
         if not ker_erode2:
             ker_erode2 = cv2.getStructuringElement(cv2.MORPH_RECT,
                                                    ksize=(31, 31))
-        return cv2.morphologyEx(mask, op=cv2.MORPH_ERODE, kernel=ker_erode2,
-                                dst=mask)
+        # return cv2.morphologyEx(mask, op=cv2.MORPH_ERODE, kernel=ker_erode2,
+        # dst=mask)
+        return cv2.morphologyEx(mask, op=cv2.MORPH_CLOSE, kernel=ker_erode2,
+                                dst=mask, iterations=3)
     else:
         return np.zeros_like(mask)
+
+
+def target_contour(img, min_hue=145, max_hue=165, carpet_mask=None):
+    """
+    Find contour of target (violet by default)
+
+    :param img:
+    :param min_hue:
+    :param max_hue:
+    :param carpet_mask:
+    """
+    mask = mask_hue(img, min_hue, max_hue)
+    mask = cv2.bitwise_and(mask, mask, mask, carpet_mask)
+    ker = cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(11, 11))
+    cv2.morphologyEx(mask, cv2.MORPH_CLOSE, ker, dst=mask)
+    return largest_contour(mask)
 
 
 def test_carpet(input_path):
