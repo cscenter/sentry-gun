@@ -7,8 +7,26 @@ import subprocess
 
 
 class Robot:
-    def __init__(self, winscp_path, ip="192.168.1.1", login="root",
+    def __init__(self, conn):
+        self.conn = conn
+
+    def rotate_horizontal(self, angle):
+        pass
+
+    def rotate_vertical(self, angle):
+        pass
+
+    def shoot(self):
+        pass
+
+
+class RobotConnector:
+    def __init__(self, winscp_path, ip='192.168.1.1', login='root',
                  password=""):
+        """
+
+        :type winscp_path: str | Unicode
+        """
         self.winscp_path = winscp_path
         self.ip = ip
         self.login = login
@@ -21,7 +39,7 @@ class Robot:
                                   universal_newlines=True, bufsize=0)
         open = 'open scp://{}:{}@{}\n'.format(self.login,
                                               self.password, self.ip)
-        cd = winscp.stdin.write('cd trik\n')
+        cd = 'cd trik\n'
 
         input = open + cd
         for command in commands:
@@ -52,8 +70,8 @@ class Robot:
         self.winscp.terminate()
 
 
-def robo_connect(winscp_path, ip="192.168.1.1", login="root",
-                 password=""):
+def robo_connect_test(winscp_path, ip="192.168.1.1", login="root",
+                      password=""):
     winscp = subprocess.Popen(winscp_path, stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                               universal_newlines=True, bufsize=0)
@@ -84,6 +102,6 @@ def robo_connect(winscp_path, ip="192.168.1.1", login="root",
 
 
 if __name__ == '__main__':
-    # robo_connect('cmd')
-    # robo_connect('C:\TRIKStudio\winscp\WinSCP.com')
-    robo_connect(os.path.join(os.pardir, 'putty', 'plink.exe'))
+    # robo_connect_test('cmd')
+    robo_connect_test('C:\TRIKStudio\winscp\WinSCP.com')
+    # robo_connect_test(os.path.join(os.pardir, 'putty', 'plink.exe'))
