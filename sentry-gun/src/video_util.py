@@ -12,9 +12,6 @@ logger = logging.getLogger('video_processing')
 
 
 def preprocess(img, dst=None, carpet_mask=None):
-    if carpet_mask is None:
-        carpet_mask = img_util.green_carpet_mask(img)
-
     h, l, s = cv2.split(cv2.cvtColor(img, cv2.COLOR_BGR2HLS))
     # Only orange colors
     cv2.inRange(h, 18, 35, h)
@@ -25,25 +22,26 @@ def preprocess(img, dst=None, carpet_mask=None):
     return cv2.bitwise_and(img, img, dst, mask)
 
 
-def get_mask(img, dst=None, carpet_mask=None, lowerb=(20, 50, 0),
-             upperb=(40, 255, 255)):
-    if carpet_mask is None:
-        carpet_mask = img_util.green_carpet_mask(img)
-
+def get_ball_mask(img, dst=None, lowerb=(20, 50, 0), upperb=(40, 255, 255),
+                  carpet_mask=None):
     hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
     mask = cv2.inRange(hls, lowerb, upperb)
-
-    return cv2.bitwise_and(mask, carpet_mask, dst)
+    return cv2.bitwise_and(mask, mask, dst=dst, mask=carpet_mask)
 
 
 def extract_ball_from_capture(cap, max_frames_count=-1, skip_count=0,
-                              carpet_mask=None, get_mask=None):
+                              carpet_mask=None, get_mask=None,
+                              carpet_lowerb=None,
+                              carpet_upperb=None,
+                              ball_lowerb=None,
+                              ball_upperb=None):
     """
 
     Read frames from capture until we detect motion of the ball
 
     Return tuple of (original frames, ball mask frames)
 
+    :param carpet_lowerb:
     :rtype : (list(np.ndarray), list(np.ndarray))
     """
     frames = []
@@ -65,8 +63,11 @@ def extract_ball_from_capture(cap, max_frames_count=-1, skip_count=0,
         if ret:
             if get_mask is not None:
                 if carpet_mask is None:
-                    carpet_mask = img_util.green_carpet_mask(frame)
-                mask = get_mask(frame, carpet_mask=carpet_mask)
+                    carpet_mask = img_util.green_carpet_mask(frame,
+                                                             carpet_lowerb,
+                                                             carpet_upperb)
+                mask = get_mask(frame, lowerb=ball_lowerb, upperb=ball_upperb,
+                                carpet_mask=carpet_mask)
                 if prev_mask is None:
                     move_mask = np.zeros_like(mask)
                 else:

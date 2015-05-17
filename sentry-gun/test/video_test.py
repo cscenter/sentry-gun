@@ -26,7 +26,9 @@ def test_orange_mask(input_path, out_prefix=None):
         out_prefix = os.path.join('output', os.path.basename(input_path))
 
     frames_orig = video_io.get_frames(input_path)
-    carpet_mask = img_util.green_carpet_mask(frames_orig[30])
+    carpet_mask = img_util.green_carpet_mask(frames_orig[30],
+                                               lowerb_hls=(55, 0, 0),
+                                               upperb_hls=(70, 255, 255))
     cv2.imwrite(out_prefix + '_carpet.jpg', carpet_mask)
 
     frames_orange = [
@@ -56,9 +58,15 @@ def test1(input_path, out_prefix=None):
             logger.info("Video written to file {}".format(path))
 
 
-    frames, mask_ball = video_util.extract_ball_from_capture(cap,
-                                                                   skip_count=10,
-                                                                   get_mask=video_util.get_mask)
+    frames, mask_ball = \
+        video_util.extract_ball_from_capture(cap,
+                                             skip_count=10,
+                                             get_mask=video_util.get_ball_mask,
+                                             carpet_lowerb=(50, 0, 0),
+                                             carpet_upperb=(70, 255, 255),
+                                             ball_lowerb=(18, 50, 0),
+                                             ball_upperb=(35, 255, 255)
+                                             )
     cap.release()
 
     logger.info("Frames captured: {}".format(len(frames)))

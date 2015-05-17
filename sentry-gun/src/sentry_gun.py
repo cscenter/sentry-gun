@@ -1,16 +1,14 @@
-import sys
-from gui import get_coords
-import video_io
-
 __author__ = 'vasdommes'
 
+import sys
 import time
 import cv2
 import numpy as np
 import logging
-import io
 import os
 
+import gui
+import video_io
 import img_util
 import video_util
 import trajectory as tr
@@ -31,8 +29,8 @@ def get_perspective_transform(cap):
         raise IOError('Cannot connect to webcam')
 
     while True:
-        carpet_angles = np.float32(get_coords(img,
-                                              winname='Select 4 carpet angles from bottom-left, clockwise'))
+        carpet_angles = np.float32(gui.get_coords(img,
+                                                  winname='Select 4 carpet angles from bottom-left, clockwise'))
         if len(carpet_angles) == 4:
             break
 
@@ -71,10 +69,25 @@ def program(out_dir):
         raise IOError('Cannot read from camera')
     cv2.imwrite(os.path.join(out_dir, 'img.jpg'), img)
 
-    carpet_mask = img_util.green_carpet_mask(img, min_hue=35, max_hue=55)
+    # Find carpet
+    lowerb, upperb = gui.get_hls_range(img,
+                                       winname='Choose HLS range for carpet')
+    logger.info('Carpet HLS range: {} - {}'.format(lowerb, upperb))
+
+    carpet_mask = img_util.green_carpet_mask(img, lowerb, upperb)
     cv2.imwrite(os.path.join(out_dir, 'carpet_mask.jpg'), carpet_mask)
 
-    ret, target_contour = img_util.target_contour(img, carpet_mask=carpet_mask)
+    # Find target
+    ret, img = cap.read()
+    if not ret:
+        logger.error('Cannot read from camera')
+        raise IOError('Cannot read from camera')
+    lowerb, upperb = gui.get_hls_range(img,
+                                       winname='Choose HLS range for target')
+    logger.info('Target HLS range: {} - {}'.format(lowerb, upperb))
+
+    ret, target_contour = img_util.target_contour(img, lowerb, upperb,
+                                                  carpet_mask)
     logging.debug('target contour: {}'.format(target_contour))
     if not ret:
         raise ValueError('Cannot find target')
@@ -99,6 +112,15 @@ def program(out_dir):
 
     cv2.imwrite(os.path.join(out_dir, 'carpet_target.jpg'), img_carpet)
 
+    # Find ball
+    ret, img = cap.read()
+    if not ret:
+        logger.error('Cannot read from camera')
+        raise IOError('Cannot read from camera')
+    ball_lowerb, ball_upperb = gui.get_hls_range(img,
+                                                 winname='Choose HLS range for ball')
+    logger.info('Ball HLS range: {} - {}'.format(lowerb, upperb))
+
     trik = robot.RobotConnector(winscp_path='C:/TRIKStudio/winscp/WinSCP.com')
 
     for i in xrange(10):
@@ -114,7 +136,10 @@ def program(out_dir):
         frames, mask_ball = video_util.extract_ball_from_capture(cap,
                                                                  skip_count=0,
                                                                  carpet_mask=carpet_mask,
-                                                                 get_mask=video_util.get_mask)
+                                                                 get_mask=video_util.get_ball_mask,
+                                                                 ball_lowerb=ball_lowerb,
+                                                                 ball_upperb=ball_upperb
+                                                                 )
 
         logger.debug("Frames captured: {}".format(len(frames)))
 
