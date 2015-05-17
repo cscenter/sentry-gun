@@ -25,15 +25,15 @@ def preprocess(img, dst=None, carpet_mask=None):
     return cv2.bitwise_and(img, img, dst, mask)
 
 
-def get_mask(img, dst=None, carpet_mask=None):
+def get_mask(img, dst=None, carpet_mask=None, lowerb=(20, 50, 0),
+             upperb=(40, 255, 255)):
     if carpet_mask is None:
         carpet_mask = img_util.green_carpet_mask(img)
 
-    h, l, s = cv2.split(cv2.cvtColor(img, cv2.COLOR_BGR2HLS))
-    # Only orange colors
-    cv2.inRange(h, 20, 40, h)
-    cv2.inRange(s, 50, 255, s)
-    return cv2.bitwise_and(h, s, dst, mask=carpet_mask)
+    hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
+    mask = cv2.inRange(hls, lowerb, upperb)
+
+    return cv2.bitwise_and(mask, carpet_mask, dst)
 
 
 def extract_ball_from_capture(cap, max_frames_count=-1, skip_count=0,
@@ -48,7 +48,6 @@ def extract_ball_from_capture(cap, max_frames_count=-1, skip_count=0,
     """
     frames = []
     mask_frames = []
-    buffer = []
     # mog = cv2.BackgroundSubtractorMOG(history=5, nmixtures=4,backgroundRatio=0.7)
     mog = cv2.BackgroundSubtractorMOG()
     motion_started = False
@@ -58,7 +57,7 @@ def extract_ball_from_capture(cap, max_frames_count=-1, skip_count=0,
 
     prev_mask = None
     while cap.isOpened():
-        if max_frames_count > 0 and len(frames) > max_frames_count:
+        if 0 < max_frames_count < len(frames):
             logger.debug('max frames count reached')
             break
 

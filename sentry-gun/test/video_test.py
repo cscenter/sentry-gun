@@ -6,9 +6,9 @@ import logging
 import io
 import sys
 
-import image_processing
+import img_util
 import trajectory as tr
-import video_processing
+import video_util
 import video_io
 
 __author__ = 'vasdommes'
@@ -26,11 +26,11 @@ def test_orange_mask(input_path, out_prefix=None):
         out_prefix = os.path.join('output', os.path.basename(input_path))
 
     frames_orig = video_io.get_frames(input_path)
-    carpet_mask = image_processing.green_carpet_mask(frames_orig[30])
+    carpet_mask = img_util.green_carpet_mask(frames_orig[30])
     cv2.imwrite(out_prefix + '_carpet.jpg', carpet_mask)
 
     frames_orange = [
-        video_processing.preprocess(frame, carpet_mask=carpet_mask) for frame
+        video_util.preprocess(frame, carpet_mask=carpet_mask) for frame
         in frames_orig]
 
     write_video(out_prefix + '_orange_mask.avi', frames_orange)
@@ -56,9 +56,9 @@ def test1(input_path, out_prefix=None):
             logger.info("Video written to file {}".format(path))
 
 
-    frames, mask_ball = video_processing.extract_ball_from_capture(cap,
+    frames, mask_ball = video_util.extract_ball_from_capture(cap,
                                                                    skip_count=10,
-                                                                   get_mask=video_processing.get_mask)
+                                                                   get_mask=video_util.get_mask)
     cap.release()
 
     logger.info("Frames captured: {}".format(len(frames)))

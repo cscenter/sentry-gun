@@ -132,6 +132,11 @@ def mask_hue(img, min_hue, max_hue):
     return cv2.inRange(h, min_hue, max_hue)
 
 
+def mask_hue_2(img, min_hue, max_hue):
+    hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
+    return cv2.inRange(hls, (min_hue, 0, 0), (max_hue, 255, 255))
+
+
 def green_carpet_mask(img, min_hue=55, max_hue=70, ker_erode=None,
                       ker_close=None, ker_erode2=None):
     """
@@ -230,3 +235,8 @@ def main():
 if __name__ == '__main__':
     # main()
     pass
+
+def apply_mask_hls(img, lowerb, upperb, dst=None):
+    hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
+    mask = cv2.inRange(img, lowerb, upperb)
+    return cv2.bitwise_and(img, img, dst, mask)
