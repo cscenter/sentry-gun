@@ -1,4 +1,5 @@
 import sys
+from gui import get_coords
 import video_io
 
 __author__ = 'vasdommes'
@@ -10,7 +11,6 @@ import logging
 import io
 import os
 
-import calibrate_coords
 import img_util
 import video_util
 import trajectory as tr
@@ -31,8 +31,8 @@ def get_perspective_transform(cap):
         raise IOError('Cannot connect to webcam')
 
     while True:
-        carpet_angles = np.float32(calibrate_coords.get_coords(img,
-                                                               winname='Select 4 carpet angles from bottom-left, clockwise'))
+        carpet_angles = np.float32(get_coords(img,
+                                              winname='Select 4 carpet angles from bottom-left, clockwise'))
         if len(carpet_angles) == 4:
             break
 
