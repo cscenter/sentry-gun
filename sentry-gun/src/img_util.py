@@ -132,23 +132,25 @@ def mask_hue(img, min_hue, max_hue):
     return cv2.inRange(h, min_hue, max_hue)
 
 
-def mask_hue_2(img, min_hue, max_hue):
+def mask_hls(img, lowerb, upperb, dst=None):
     hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
-    return cv2.inRange(hls, (min_hue, 0, 0), (max_hue, 255, 255))
+    return cv2.inRange(hls, lowerb, upperb, dst)
 
 
-def green_carpet_mask(img, min_hue=55, max_hue=70, ker_erode=None,
+def green_carpet_mask(img, lowerb_hls, upperb_hls,
+                      ker_erode=None,
                       ker_close=None, ker_erode2=None):
     """
     Find green carpet on image
 
     :param img:
     """
-    mask = mask_hue(img, min_hue, max_hue)
+    mask = mask_hls(img, lowerb_hls, upperb_hls)
     if not ker_erode:
         ker_erode = cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(11, 11))
     cv2.morphologyEx(mask, op=cv2.MORPH_ERODE, kernel=ker_erode, dst=mask)
     ret, mask = largest_contour_blob(mask)
+
     if ret:
         cv2.morphologyEx(mask, op=cv2.MORPH_DILATE, kernel=ker_erode, dst=mask)
         if not ker_close:
@@ -165,7 +167,7 @@ def green_carpet_mask(img, min_hue=55, max_hue=70, ker_erode=None,
         return np.zeros_like(mask)
 
 
-def target_contour(img, min_hue=145, max_hue=165, carpet_mask=None):
+def target_contour(img, lowerb_hls, upperb_hls, carpet_mask=None):
     """
     Find contour of target (violet by default)
 
@@ -174,7 +176,7 @@ def target_contour(img, min_hue=145, max_hue=165, carpet_mask=None):
     :param max_hue:
     :param carpet_mask:
     """
-    mask = mask_hue(img, min_hue, max_hue)
+    mask = mask_hls(img, lowerb_hls, upperb_hls)
     mask = cv2.bitwise_and(mask, mask, mask, carpet_mask)
     ker = cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(11, 11))
     cv2.morphologyEx(mask, cv2.MORPH_CLOSE, ker, dst=mask)
@@ -236,7 +238,8 @@ if __name__ == '__main__':
     # main()
     pass
 
+
 def apply_mask_hls(img, lowerb, upperb, dst=None):
     hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
-    mask = cv2.inRange(img, lowerb, upperb)
+    mask = cv2.inRange(hls, lowerb, upperb)
     return cv2.bitwise_and(img, img, dst, mask)
