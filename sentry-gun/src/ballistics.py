@@ -1,6 +1,11 @@
 __author__ = 'vasdommes'
 
-from numpy import sin, cos, sqrt
+import numpy as np
+from numpy import sin, cos, sqrt, arctan
+
+
+class BallisticError(Exception):
+    pass
 
 
 def dist(alpha, v, g, z0):
@@ -21,7 +26,7 @@ def dist_prime(alpha, v, g, z0):
     """
     discr = 2 * g * z0 + (v * sin(alpha)) ** 2
     if discr < 0:
-        raise ValueError('z0 is too low')
+        raise BallisticError('z0 is too low')
 
     return v / g * (
         v * cos(alpha) ** 2 * (
@@ -47,5 +52,45 @@ def final_coords((x0, y0, z0), (alpha, phi), v, g, gun_length=0.0):
     y = y0 + dist * sin(phi)
     return x, y
 
-    # def max_length
-    # TODO get alpha from target coords
+
+# def max_length
+# get alpha from target coords
+def shot_angle(dist, z0, v, g, gun_length=0.0):
+    """
+
+    :param dist:
+    :param z0:
+    :param v:
+    :param g:
+    :param gun_length:
+    :return: :raise BallisticError:
+    """
+    discr = v ** 4 - g * (g * dist ** 2 - 2 * z0 * v ** 2)
+    if discr < 0:
+        raise BallisticError('too long distance')
+    return tuple(
+        arctan((v ** 2 + s) / (g * dist)) for s in [-sqrt(discr), sqrt(discr)])
+
+def unit_vector(vector):
+    """ Returns the unit vector of the vector.  """
+    return vector / np.linalg.norm(vector)
+
+def angle_between(v1, v2):
+    """ Returns the angle in radians between vectors 'v1' and 'v2'::
+
+            >>> angle_between((1, 0, 0), (0, 1, 0))
+            1.5707963267948966
+            >>> angle_between((1, 0, 0), (1, 0, 0))
+            0.0
+            >>> angle_between((1, 0, 0), (-1, 0, 0))
+            3.141592653589793
+    """
+    v1_u = unit_vector(v1)
+    v2_u = unit_vector(v2)
+    angle = np.arccos(np.dot(v1_u, v2_u))
+    if np.isnan(angle):
+        if (v1_u == v2_u).all():
+            return 0.0
+        else:
+            return np.pi
+    return angle

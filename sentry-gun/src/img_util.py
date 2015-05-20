@@ -9,6 +9,12 @@ __author__ = 'vasdommes'
 logger = logging.getLogger('image_processing')
 
 
+def apply_mask_hls(img, lowerb, upperb, dst=None):
+    hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
+    mask = cv2.inRange(hls, lowerb, upperb)
+    return cv2.bitwise_and(img, img, dst, mask)
+
+
 def equalize_bgr(img, dst=None):
     if img is None:
         raise ValueError('img is None')
@@ -77,7 +83,7 @@ def largest_blob(img):
 
 # TODO use ball hue to remove noise?
 # TODO check whether the result really looks like ball?
-def detect_ball(mask, ball_size=11):
+def detect_ball(mask, ball_size=None):
     """
 
 
@@ -85,12 +91,32 @@ def detect_ball(mask, ball_size=11):
     :param ball_size:
     :rtype: (bool, np.ndarray)
     """
+    if ball_size is None:
+        ball_size = 1
     if ball_size % 2 == 0:
         ball_size -= 1
     ker = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (ball_size, ball_size))
     opened = cv2.morphologyEx(mask, op=cv2.MORPH_OPEN, kernel=ker)
     # closed = cv2.morphologyEx(opened, op=cv2.MORPH_CLOSE, kernel=ker)
     return largest_contour_blob(opened)
+
+
+def detect_ball_contour(mask, ball_size=None):
+    """
+
+
+    :param mask:
+    :param ball_size:
+    :rtype: (bool, np.ndarray)
+    """
+    if ball_size is None:
+        ball_size = 1
+    if ball_size % 2 == 0:
+        ball_size -= 1
+    ker = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (ball_size, ball_size))
+    opened = cv2.morphologyEx(mask, op=cv2.MORPH_OPEN, kernel=ker)
+    # closed = cv2.morphologyEx(opened, op=cv2.MORPH_CLOSE, kernel=ker)
+    return largest_contour(opened)
 
 
 def ball_fitEllipse(ball_mask):
@@ -115,8 +141,24 @@ def ball_radius(ball_mask):
         return None
 
 
+def ball_contour_center(ball_contour):
+    """
+    Center of min enclosing circle
+
+    :param ball_contour:
+    :return:
+    """
+    if ball_contour is None:
+        return None
+    (x, y), radius = cv2.minEnclosingCircle(ball_contour)
+    return x, y
+
+
 # TODO return not center but lowest (max-y) coordinate
 def ball_center(ball_mask):
+    ret, contour = largest_contour(ball_mask)
+    return ball_contour_center(contour)
+
     m = cv2.moments(ball_mask, binaryImage=True)
     if m['m00'] > 0:
         mass = m['m00']
@@ -147,21 +189,23 @@ def green_carpet_mask(img, lowerb_hls, upperb_hls,
     """
     mask = mask_hls(img, lowerb_hls, upperb_hls)
     if not ker_erode:
-        ker_erode = cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(11, 11))
+        ker_erode = cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(5, 5))
     cv2.morphologyEx(mask, op=cv2.MORPH_ERODE, kernel=ker_erode, dst=mask)
     ret, mask = largest_contour_blob(mask)
 
     if ret:
         cv2.morphologyEx(mask, op=cv2.MORPH_DILATE, kernel=ker_erode, dst=mask)
         if not ker_close:
-            ker_close = cv2.getStructuringElement(cv2.MORPH_RECT, (101, 101))
+            ker_close = cv2.getStructuringElement(cv2.MORPH_RECT, (33, 33))
         # cv2.morphologyEx(mask, cv2.MORPH_DILATE, ker_close, dst=mask)
         if not ker_erode2:
             ker_erode2 = cv2.getStructuringElement(cv2.MORPH_RECT,
-                                                   ksize=(31, 31))
+                                                   ksize=(5, 5))
         # return cv2.morphologyEx(mask, op=cv2.MORPH_ERODE, kernel=ker_erode2,
         # dst=mask)
-        return cv2.morphologyEx(mask, op=cv2.MORPH_CLOSE, kernel=ker_erode2,
+        cv2.morphologyEx(mask, op=cv2.MORPH_CLOSE, kernel=ker_erode2,
+                         dst=mask, iterations=3)
+        return cv2.morphologyEx(mask, op=cv2.MORPH_ERODE, kernel=ker_erode2,
                                 dst=mask, iterations=3)
     else:
         return np.zeros_like(mask)
@@ -169,16 +213,17 @@ def green_carpet_mask(img, lowerb_hls, upperb_hls,
 
 def target_contour(img, lowerb_hls, upperb_hls, carpet_mask=None):
     """
-    Find contour of target (violet by default)
+    Find contour of target
 
     :param img:
-    :param min_hue:
-    :param max_hue:
+    :param lowerb_hls:
+    :param upperb_hls:
     :param carpet_mask:
+    :return:
     """
     mask = mask_hls(img, lowerb_hls, upperb_hls)
     mask = cv2.bitwise_and(mask, mask, mask, carpet_mask)
-    ker = cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(11, 11))
+    ker = cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(3, 3))
     cv2.morphologyEx(mask, cv2.MORPH_CLOSE, ker, dst=mask)
     return largest_contour(mask)
 
@@ -237,9 +282,3 @@ def main():
 if __name__ == '__main__':
     # main()
     pass
-
-
-def apply_mask_hls(img, lowerb, upperb, dst=None):
-    hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
-    mask = cv2.inRange(hls, lowerb, upperb)
-    return cv2.bitwise_and(img, img, dst, mask)

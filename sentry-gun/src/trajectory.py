@@ -22,13 +22,13 @@ def get_acceleration(trajectory):
 
 def get_landing_point(trajectory):
     if not trajectory:
-        return None
+        return None, None
     v = np.concatenate((np.diff(trajectory, axis=0), [[0.0, 0.0]]))
     for i in xrange(1, len(v)):
         _, vy = v[i]
         _, vy_prev = v[i - 1]
         if vy <= 0 < vy_prev:
-            return trajectory[i]
+            return i, trajectory[i]
 
 
 # TODO interpolate point using 4 neighbour points
